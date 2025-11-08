@@ -5,7 +5,7 @@ This repository contains a production-ready solution for the Crossmint Megaverse
 - Phase 1 renders an X-shaped constellation of 🪐 POLYanets between rows 2 and 8.
 - Phase 2 reproduces the Crossmint logo using 🌙 SOLoons, ☄ comETHs, and 🪐 POLYanets sourced from the goal map endpoint.
 
-The implementation focuses on reliability under tight API rate limits. It includes resiliency tooling, clear domain modeling, and repeatable workflows for initialization, execution, and validation.
+The implementation focuses on reliability under tight API rate limits. It includes resiliency tooling, clear domain modeling, and repeatable workflows for initialization and execution.
 
 ## Prerequisites
 - Go 1.21+
@@ -19,7 +19,7 @@ The implementation focuses on reliability under tight API rate limits. It includ
 4. Run a phase command:
    - `megaverse phase1` generates the Phase 1 cross pattern.
    - `megaverse phase2` builds the Crossmint logo using the goal map.
-5. Use `megaverse validate` after each phase to inspect the live map state.
+5. Inspect the live map with `megaverse status` or the Crossmint dashboard as needed.
 
 All commands respect the configured timeout, rate limit, and retry budget to stay within the API allowances.
 
@@ -27,7 +27,6 @@ All commands respect the configured timeout, rate limit, and retry budget to sta
 - `megaverse init` creates or updates the configuration file with your candidate ID.
 - `megaverse phase1` runs the cross-pattern strategy in parallel workers.
 - `megaverse phase2` downloads the goal map, plans the layout, and materialises it in parallel.
-- `megaverse validate` fetches the current map and verifies it against the expected layout.
 - `megaverse status` prints a summary of the current megaverse grid.
 
 ## Architecture Highlights
@@ -59,7 +58,7 @@ Run all unit tests with:
 go test ./...
 ```
 
-The suite covers retry behaviour, strategy plan generation, and service orchestration helpers. Extend or focus tests by targeting individual packages, for example `go test ./internal/application/strategies`.
+The suite covers retry behaviour, strategy plan generation, and infrastructure helpers. Extend or focus tests by targeting individual packages, for example `go test ./internal/application/strategies`.
 
 ## Troubleshooting
 - **429 Too Many Requests**: lower `api.rate_limit.requests_per_second` or increase retry attempts.
