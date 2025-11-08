@@ -1,0 +1,33 @@
+# Crossmint Megaverse Challenge Configuration
+
+api:
+  # Base URL for the Crossmint API
+  base_url: "https://challenge.crossmint.io/api"
+  
+  # Your candidate ID (can also be set via CROSSMINT_CANDIDATE_ID environment variable)
+  candidate_id: "8f3e64b7-49fc-452a-9764-b2e1b8cf2eed"
+  
+  # HTTP request timeout
+  timeout: 30s
+  
+  # Retry configuration for failed requests
+  retry:
+    max_attempts: 6
+    initial_delay: 1s
+    max_delay: 30s
+    multiplier: 2.0
+  
+  # Rate limiting configuration
+  rate_limit:
+    requests_per_second: 2.0
+
+# Logging configuration
+logging:
+  level: "info"  # Options: debug, info, warn, error
+  format: "text" # Options: text, json
+
+# Execution configuration
+execution:
+  max_workers: 5  # Maximum number of parallel workers
+  batch_size: 5   # Size of batches for batched execution
+  timeout: 5m     # Maximum time allotted for a single CLI command
