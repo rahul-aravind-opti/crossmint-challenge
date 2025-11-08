@@ -1,7 +1,7 @@
 # Crossmint Megaverse Challenge
 
 ## Overview
-This repository contains a production-ready solution for the Crossmint Megaverse coding challenge. The CLI builds two astral layouts:
+This repository contains the solution for the Crossmint Megaverse coding challenge. The CLI builds two astral layouts:
 - Phase 1 renders an X-shaped constellation of 🪐 POLYanets between rows 2 and 8.
 - Phase 2 reproduces the Crossmint logo using 🌙 SOLoons, ☄ comETHs, and 🪐 POLYanets sourced from the goal map endpoint.
 
