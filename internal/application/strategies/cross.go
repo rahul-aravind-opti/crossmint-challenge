@@ -60,46 +60,6 @@ func (s *CrossPatternStrategy) GeneratePlan(_ context.Context) (CreationPlan, er
 	}, nil
 }
 
-// Validate checks if the megaverse has the correct cross pattern
-func (s *CrossPatternStrategy) Validate(megaverse *entities.Megaverse) error {
-	if megaverse == nil {
-		return fmt.Errorf("megaverse is nil")
-	}
-
-	if megaverse.Width != s.gridSize || megaverse.Height != s.gridSize {
-		return fmt.Errorf("invalid grid size: expected %dx%d, got %dx%d",
-			s.gridSize, s.gridSize, megaverse.Width, megaverse.Height)
-	}
-
-	// Check each position in the grid
-	for row := 0; row < s.gridSize; row++ {
-		for col := 0; col < s.gridSize; col++ {
-			obj, _ := megaverse.GetObject(row, col)
-
-			// Check if this position should have a Polyanet
-			shouldHavePolyanet := row >= s.startRow && row <= s.endRow &&
-				(col == row || col == s.gridSize-1-row)
-
-			if shouldHavePolyanet {
-				if obj == nil {
-					return fmt.Errorf("missing Polyanet at position (%d, %d)", row, col)
-				}
-				if _, ok := obj.(*entities.Polyanet); !ok {
-					return fmt.Errorf("expected Polyanet at position (%d, %d), got %s",
-						row, col, obj.GetType())
-				}
-			} else {
-				if obj != nil {
-					return fmt.Errorf("unexpected object at position (%d, %d): %s",
-						row, col, obj.GetType())
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
 // GetGridSize returns the dimensions of the megaverse for this pattern
 func (s *CrossPatternStrategy) GetGridSize() (width, height int) {
 	return s.gridSize, s.gridSize

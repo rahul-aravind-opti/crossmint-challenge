@@ -45,7 +45,6 @@ func NewRootCommand(deps *Dependencies) *cobra.Command {
 	rootCmd.AddCommand(NewInitCommand(deps))
 	rootCmd.AddCommand(NewPhase1Command(deps))
 	rootCmd.AddCommand(NewPhase2Command(deps))
-	rootCmd.AddCommand(NewValidateCommand(deps))
 	rootCmd.AddCommand(NewStatusCommand(deps))
 
 	return rootCmd

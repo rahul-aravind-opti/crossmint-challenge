@@ -11,8 +11,6 @@ import (
 
 // NewPhase2Command returns the command that executes Phase 2 of the challenge.
 func NewPhase2Command(deps *Dependencies) *cobra.Command {
-	var shouldValidate bool
-
 	cmd := &cobra.Command{
 		Use:   "phase2",
 		Short: "Render the Phase 2 megaverse logo",
@@ -30,19 +28,8 @@ func NewPhase2Command(deps *Dependencies) *cobra.Command {
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), "Phase 2 logo created successfully")
-
-			if shouldValidate {
-				if err := deps.Service.ValidateMegaverse(ctx, strategy); err != nil {
-					return err
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), "Phase 2 validation completed")
-			}
-
 			return nil
 		},
 	}
-
-	cmd.Flags().BoolVar(&shouldValidate, "validate", false, "Validate the megaverse after creation")
-
 	return cmd
 }

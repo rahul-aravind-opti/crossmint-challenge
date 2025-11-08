@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	retry "github.com/avast/retry-go/v4"
 	"github.com/crossmint/megaverse-challenge/internal/domain"
 	"github.com/crossmint/megaverse-challenge/pkg/ratelimit"
 	pkgretry "github.com/crossmint/megaverse-challenge/pkg/retry"
@@ -56,120 +57,88 @@ func NewClient(config ClientConfig) *Client {
 
 // doRequest performs an HTTP request with rate limiting and retry logic
 func (c *Client) doRequest(ctx context.Context, method, endpoint string, body interface{}) (*http.Response, error) {
-	var bodyReader io.Reader
+	var payload []byte
 	if body != nil {
-		jsonBody, err := json.Marshal(body)
+		var err error
+		payload, err = json.Marshal(body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal request body: %w", err)
 		}
-		bodyReader = bytes.NewReader(jsonBody)
 	}
 
 	url := c.baseURL + endpoint
+	var resp *http.Response
 
-	// Create a retryable function
-	retryableFunc := func(ctx context.Context) error {
-		// Apply rate limiting
+	retryableErr := pkgretry.Do(ctx, func(ctx context.Context) error {
 		if err := c.rateLimiter.Wait(ctx); err != nil {
-			return fmt.Errorf("rate limiter error: %w", err)
+			return retry.Unrecoverable(fmt.Errorf("rate limiter error: %w", err))
 		}
 
-		// Reset body reader for retry attempts
-		if body != nil && bodyReader != nil {
-			if seeker, ok := bodyReader.(io.Seeker); ok {
-				_, err := seeker.Seek(0, io.SeekStart)
-				if err != nil {
-					return fmt.Errorf("failed to reset request body: %w", err)
-				}
-			}
+		var bodyReader io.Reader
+		if len(payload) > 0 {
+			bodyReader = bytes.NewReader(payload)
 		}
 
 		req, err := http.NewRequestWithContext(ctx, method, url, bodyReader)
 		if err != nil {
-			return fmt.Errorf("failed to create request: %w", err)
+			return retry.Unrecoverable(fmt.Errorf("failed to create request: %w", err))
 		}
 
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "application/json")
 
-		resp, err := c.httpClient.Do(req)
+		if resp != nil {
+			resp.Body.Close()
+			resp = nil
+		}
+
+		resp, err = c.httpClient.Do(req)
 		if err != nil {
-			return fmt.Errorf("request failed: %w", err)
+			return err
 		}
 
-		// Check if the response indicates an error
-		if resp.StatusCode >= 500 {
-			// Server errors are retryable
-			body, _ := io.ReadAll(resp.Body)
+		status := resp.StatusCode
+		if status == http.StatusTooManyRequests || status >= 500 {
+			responseBody, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			return &temporaryError{
-				error: domain.NewAPIError(resp.StatusCode, string(body), endpoint),
-			}
-		} else if resp.StatusCode >= 400 {
-			// Client errors are not retryable
-			body, _ := io.ReadAll(resp.Body)
+			resp = nil
+			return domain.NewAPIError(status, string(responseBody), endpoint)
+		}
+
+		if status >= 400 {
+			responseBody, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
-			apiErr := domain.NewAPIError(resp.StatusCode, string(body), endpoint)
-
-			if resp.StatusCode == http.StatusTooManyRequests {
-				// Treat rate limit responses as retryable
-				return &temporaryError{error: apiErr}
-			}
-
-			return &permanentError{error: apiErr}
+			resp = nil
+			return retry.Unrecoverable(domain.NewAPIError(status, string(responseBody), endpoint))
 		}
 
-		// Success - store response for return
-		return &successResponse{resp: resp}
-	}
-
-	// Execute with retry using our custom retry package
-	err := pkgretry.Do(ctx, retryableFunc, c.retryConfig, isRetryableError)
-	if err != nil {
-		// Check if it's a success response
-		var success *successResponse
-		if errors.As(err, &success) {
-			return success.resp, nil
+		return nil
+	}, c.retryConfig, func(err error) bool {
+		if err == nil {
+			return false
 		}
-		return nil, err
+
+		if !retry.IsRecoverable(err) {
+			return false
+		}
+
+		var apiErr *domain.APIError
+		if errors.As(err, &apiErr) {
+			return apiErr.StatusCode == http.StatusTooManyRequests || apiErr.StatusCode >= 500
+		}
+
+		return true
+	})
+
+	if retryableErr != nil {
+		return nil, retryableErr
 	}
 
-	return nil, fmt.Errorf("unexpected nil error from retry")
-}
-
-// temporaryError wraps errors that should be retried
-type temporaryError struct {
-	error
-}
-
-// permanentError wraps errors that should not be retried
-type permanentError struct {
-	error
-}
-
-// successResponse wraps a successful HTTP response
-type successResponse struct {
-	resp *http.Response
-}
-
-func (s *successResponse) Error() string {
-	return "success"
-}
-
-// isRetryableError determines if an error is retryable
-func isRetryableError(err error) bool {
-	if err == nil {
-		return false
+	if resp == nil {
+		return nil, fmt.Errorf("no response received from %s %s", method, endpoint)
 	}
 
-	// successResponse is a special case - not really an error
-	if _, ok := err.(*successResponse); ok {
-		return false
-	}
-
-	// Check if it's a temporary error
-	_, isTemporary := err.(*temporaryError)
-	return isTemporary
+	return resp, nil
 }
 
 // Post performs a POST request

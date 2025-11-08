@@ -99,11 +99,15 @@ func (r *Repository) GetCurrentMap(ctx context.Context) (*entities.Megaverse, er
 
 	endpoint := fmt.Sprintf("/map/%s", r.client.GetCandidateID())
 
+	type apiCell struct {
+		Type      *int   `json:"type,omitempty"`
+		Color     string `json:"color,omitempty"`
+		Direction string `json:"direction,omitempty"`
+	}
+
 	var response struct {
-		Map [][]struct {
-			Type      string `json:"type,omitempty"`
-			Color     string `json:"color,omitempty"`
-			Direction string `json:"direction,omitempty"`
+		Map struct {
+			Content [][]*apiCell `json:"content"`
 		} `json:"map"`
 	}
 
@@ -116,32 +120,33 @@ func (r *Repository) GetCurrentMap(ctx context.Context) (*entities.Megaverse, er
 		return nil, fmt.Errorf("failed to get current map: %w", err)
 	}
 
+	content := response.Map.Content
 	// Convert response to Megaverse
-	height := len(response.Map)
+	height := len(content)
 	if height == 0 {
 		return entities.NewMegaverse(0, 0), nil
 	}
-	width := len(response.Map[0])
+	width := len(content[0])
 
 	megaverse := entities.NewMegaverse(width, height)
 
-	for row, rowData := range response.Map {
+	for row, rowData := range content {
 		for col, cell := range rowData {
-			if cell.Type == "" {
+			if cell == nil || cell.Type == nil {
 				continue
 			}
 
 			pos := entities.Position{Row: row, Column: col}
 
-			switch cell.Type {
-			case "POLYANET":
+			switch *cell.Type {
+			case 0:
 				megaverse.PlaceObject(&entities.Polyanet{Position: pos})
-			case "SOLOON":
+			case 1:
 				megaverse.PlaceObject(&entities.Soloon{
 					Position: pos,
 					Color:    entities.SoloonColor(cell.Color),
 				})
-			case "COMETH":
+			case 2:
 				megaverse.PlaceObject(&entities.Cometh{
 					Position:  pos,
 					Direction: entities.ComethDirection(cell.Direction),

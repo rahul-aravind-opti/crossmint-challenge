@@ -11,8 +11,6 @@ import (
 
 // NewPhase1Command returns the command that executes Phase 1 of the challenge.
 func NewPhase1Command(deps *Dependencies) *cobra.Command {
-	var shouldValidate bool
-
 	cmd := &cobra.Command{
 		Use:   "phase1",
 		Short: "Create the Phase 1 POLYanet cross",
@@ -30,19 +28,8 @@ func NewPhase1Command(deps *Dependencies) *cobra.Command {
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), "Phase 1 cross created successfully")
-
-			if shouldValidate {
-				if err := deps.Service.ValidateMegaverse(ctx, strategy); err != nil {
-					return err
-				}
-				fmt.Fprintln(cmd.OutOrStdout(), "Phase 1 validation completed")
-			}
-
 			return nil
 		},
 	}
-
-	cmd.Flags().BoolVar(&shouldValidate, "validate", false, "Validate the megaverse after creation")
-
 	return cmd
 }

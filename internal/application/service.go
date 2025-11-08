@@ -274,28 +274,6 @@ func (s *MegaverseService) ClearMegaverse(ctx context.Context, width, height int
 	return nil
 }
 
-// ValidateMegaverse validates the current megaverse against a strategy
-func (s *MegaverseService) ValidateMegaverse(ctx context.Context, strategy strategies.PatternStrategy) error {
-	s.logger.Printf("Validating megaverse against strategy: %s\n", strategy.GetName())
-
-	// Try to get the current map
-	currentMap, err := s.repository.GetCurrentMap(ctx)
-	if err != nil {
-		// If current map is not available, we can't validate
-		s.logger.Printf("Warning: Could not retrieve current map: %v\n", err)
-		s.logger.Printf("Validation skipped - current map endpoint may not be available\n")
-		return nil
-	}
-
-	// Validate against the strategy
-	if err := strategy.Validate(currentMap); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
-	}
-
-	s.logger.Printf("Validation successful!\n")
-	return nil
-}
-
 // GetGoalMap retrieves the goal map for the current challenge
 func (s *MegaverseService) GetGoalMap(ctx context.Context) (*domain.GoalMap, error) {
 	return s.repository.GetGoalMap(ctx)

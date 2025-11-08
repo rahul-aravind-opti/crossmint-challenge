@@ -14,9 +14,6 @@ type PatternStrategy interface {
 	// GeneratePlan creates a plan of objects to be placed in the megaverse
 	GeneratePlan(ctx context.Context) (CreationPlan, error)
 
-	// Validate checks if the current megaverse matches the expected pattern
-	Validate(megaverse *entities.Megaverse) error
-
 	// GetGridSize returns the dimensions of the megaverse for this pattern
 	GetGridSize() (width, height int)
 }
