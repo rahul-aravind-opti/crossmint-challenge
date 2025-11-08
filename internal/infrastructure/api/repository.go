@@ -93,10 +93,7 @@ func (r *Repository) GetGoalMap(ctx context.Context) (*domain.GoalMap, error) {
 
 // GetCurrentMap retrieves the current state of the megaverse
 func (r *Repository) GetCurrentMap(ctx context.Context) (*entities.Megaverse, error) {
-	// Note: This endpoint might not exist in the actual API
-	// If it doesn't, we can implement a method that tracks state locally
-	// or returns an error indicating this feature is not available
-
+	// callers should treat a 404 as “not supported”.
 	endpoint := fmt.Sprintf("/map/%s", r.client.GetCandidateID())
 
 	type apiCell struct {
@@ -121,7 +118,6 @@ func (r *Repository) GetCurrentMap(ctx context.Context) (*entities.Megaverse, er
 	}
 
 	content := response.Map.Content
-	// Convert response to Megaverse
 	height := len(content)
 	if height == 0 {
 		return entities.NewMegaverse(0, 0), nil
@@ -138,6 +134,7 @@ func (r *Repository) GetCurrentMap(ctx context.Context) (*entities.Megaverse, er
 
 			pos := entities.Position{Row: row, Column: col}
 
+			// The API uses numeric type codes: 0 = polyanet, 1 = soloon, 2 = cometh.
 			switch *cell.Type {
 			case 0:
 				megaverse.PlaceObject(&entities.Polyanet{Position: pos})

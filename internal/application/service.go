@@ -39,7 +39,7 @@ func NewMegaverseService(repository domain.MegaverseRepository, logger *log.Logg
 func (s *MegaverseService) ExecuteStrategy(ctx context.Context, strategy strategies.PatternStrategy) error {
 	s.logger.Printf("Executing strategy: %s\n", strategy.GetName())
 
-	// Generate the plan
+	// Ask the strategy for a creation plan (objects plus execution hints such as order/batch size)
 	plan, err := strategy.GeneratePlan(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to generate plan: %w", err)
@@ -49,7 +49,6 @@ func (s *MegaverseService) ExecuteStrategy(ctx context.Context, strategy strateg
 
 	s.logger.Printf("Generated plan with %d objects\n", len(objects))
 
-	// Create objects based on the execution order
 	execOrder := plan.Order
 	if execOrder == 0 {
 		execOrder = strategies.OrderSequential
@@ -101,16 +100,14 @@ func (s *MegaverseService) createObjectsSequential(ctx context.Context, objects 
 	return nil
 }
 
-// createObjectsParallel creates objects in parallel with controlled concurrency
+// createObjectsParallel uses a fixed-size worker pool so we can overlap work while keeping the API traffic predictable
 func (s *MegaverseService) createObjectsParallel(ctx context.Context, objects []entities.AstralObject) error {
-	// Use a worker pool pattern with limited concurrency
-	const maxWorkers = 5 // Limit concurrent workers to avoid overwhelming the API
+	const maxWorkers = 5 // tuned to respect Crossmint rate limits without incurring long queues
 
 	var wg sync.WaitGroup
 	objectChan := make(chan entities.AstralObject, len(objects))
 	errorChan := make(chan error, len(objects))
 
-	// Start workers
 	for i := 0; i < maxWorkers; i++ {
 		wg.Add(1)
 		go func(workerID int) {
@@ -133,19 +130,16 @@ func (s *MegaverseService) createObjectsParallel(ctx context.Context, objects []
 				if err := s.createObject(ctx, obj); err != nil {
 					s.logger.Printf("[Worker %d] Failed to create object: %v\n", workerID, err)
 					errorChan <- err
-					// Continue processing other objects
 				}
 			}
 		}(i)
 	}
 
-	// Send objects to workers
 	for _, obj := range objects {
 		objectChan <- obj
 	}
 	close(objectChan)
 
-	// Wait for all workers to complete
 	wg.Wait()
 	close(errorChan)
 

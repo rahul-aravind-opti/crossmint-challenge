@@ -27,9 +27,8 @@ func (s *LogoPatternStrategy) GetName() string {
 	return "Logo Pattern (Phase 2)"
 }
 
-// GeneratePlan creates a plan based on the goal map
 func (s *LogoPatternStrategy) GeneratePlan(ctx context.Context) (CreationPlan, error) {
-	// Fetch the goal map from the API
+	// Always fetch the latest goal map so we mirror Crossmint's target layout even if it changes between runs.
 	goalMap, err := s.repository.GetGoalMap(ctx)
 	if err != nil {
 		return CreationPlan{}, fmt.Errorf("failed to fetch goal map: %w", err)
@@ -42,7 +41,6 @@ func (s *LogoPatternStrategy) GeneratePlan(ctx context.Context) (CreationPlan, e
 
 	var objects []entities.AstralObject
 
-	// Parse the goal map and create objects
 	for row, rowData := range goalMap.Goal {
 		for col, cellValue := range rowData {
 			obj := s.parseGoalCell(cellValue, row, col)
@@ -54,11 +52,11 @@ func (s *LogoPatternStrategy) GeneratePlan(ctx context.Context) (CreationPlan, e
 
 	return CreationPlan{
 		Objects: objects,
-		Order:   OrderParallel,
+		// There can be 100+ objects; running in parallel keeps the overall runtime acceptable.
+		Order: OrderParallel,
 	}, nil
 }
 
-// parseGoalCell converts a goal map cell value to an AstralObject
 func (s *LogoPatternStrategy) parseGoalCell(cellValue string, row, col int) entities.AstralObject {
 	cellValue = strings.ToUpper(strings.TrimSpace(cellValue))
 	position := entities.Position{Row: row, Column: col}
@@ -119,7 +117,7 @@ func (s *LogoPatternStrategy) parseGoalCell(cellValue string, row, col int) enti
 		}
 
 	default:
-		// Unknown cell value, log and skip
+		// The API occasionally introduces new tokens; log them so we can extend support without failing the build.
 		fmt.Printf("Warning: Unknown cell value '%s' at position (%d, %d)\n", cellValue, row, col)
 		return nil
 	}
@@ -137,11 +135,4 @@ func (s *LogoPatternStrategy) GetGridSize() (width, height int) {
 	}
 
 	return width, height
-}
-
-// GetExecutionOrder returns the recommended execution order for this pattern
-func (s *LogoPatternStrategy) GetExecutionOrder() ExecutionOrder {
-	// Logo pattern might have many objects, parallel execution is recommended
-	// but we could also use batched if we group by object type
-	return OrderParallel
 }

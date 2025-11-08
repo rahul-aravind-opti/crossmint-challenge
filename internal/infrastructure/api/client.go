@@ -70,6 +70,7 @@ func (c *Client) doRequest(ctx context.Context, method, endpoint string, body in
 	var resp *http.Response
 
 	retryableErr := pkgretry.Do(ctx, func(ctx context.Context) error {
+		// Make every call synchronise on the limiter so bursts across goroutines keep a consistent pace.
 		if err := c.rateLimiter.Wait(ctx); err != nil {
 			return retry.Unrecoverable(fmt.Errorf("rate limiter error: %w", err))
 		}
@@ -88,6 +89,7 @@ func (c *Client) doRequest(ctx context.Context, method, endpoint string, body in
 		req.Header.Set("Accept", "application/json")
 
 		if resp != nil {
+			// The same response pointer is reused by retry-go; close the previous body before issuing another attempt.
 			resp.Body.Close()
 			resp = nil
 		}
@@ -118,6 +120,7 @@ func (c *Client) doRequest(ctx context.Context, method, endpoint string, body in
 			return false
 		}
 
+		// retry-go marks unrecoverable errors explicitly; respect that signal before applying our custom rules.
 		if !retry.IsRecoverable(err) {
 			return false
 		}

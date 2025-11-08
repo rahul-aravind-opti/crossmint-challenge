@@ -38,15 +38,14 @@ func (s *CrossPatternStrategy) GeneratePlan(_ context.Context) (CreationPlan, er
 			s.startRow, s.endRow, s.gridSize)
 	}
 
-	// Create Polyanets along both diagonals
+	// Populate both diagonals so the cross spans from row startRow to endRow
 	for i := s.startRow; i <= s.endRow; i++ {
 		// Main diagonal (top-left to bottom-right)
 		objects = append(objects, &entities.Polyanet{
 			Position: entities.Position{Row: i, Column: i},
 		})
 
-		// Anti-diagonal (top-right to bottom-left)
-		// Skip the (single) center point as it's already added by the main diagonal
+		// Anti-diagonal (top-right to bottom-left). Skip the unique center so we do not duplicate the same cell.
 		if i != s.gridSize/2 {
 			objects = append(objects, &entities.Polyanet{
 				Position: entities.Position{Row: i, Column: s.gridSize - 1 - i},
@@ -56,7 +55,8 @@ func (s *CrossPatternStrategy) GeneratePlan(_ context.Context) (CreationPlan, er
 
 	return CreationPlan{
 		Objects: objects,
-		Order:   OrderParallel,
+		// A parallel execution keeps the runtime low while touching disjoint coordinates.
+		Order: OrderParallel,
 	}, nil
 }
 
